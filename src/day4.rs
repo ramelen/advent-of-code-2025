@@ -1,16 +1,4 @@
-use crate::{Day, Parse, PartOne, PartTwo, test};
-
-#[cfg(test)]
-const INPUT: &str = "..@@.@@@@.
-@@@.@.@.@@
-@@@@@.@.@@
-@.@@@@..@.
-@@.@@@@.@@
-.@@@@@@@.@
-.@.@.@.@@@
-@.@@@.@@@@
-.@@@@@@@@.
-@.@.@@@.@.";
+use crate::{Day, FromInput, Solve};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Tile {
@@ -18,32 +6,8 @@ pub enum Tile {
     Roll,
 }
 
-#[cfg(test)]
-const R: Tile = Tile::Roll;
-#[cfg(test)]
-const F: Tile = Tile::Free;
-
-test!(day 4, parse:
-    INPUT => vec![
-        vec![F, F, R, R, F, R, R, R, R, F],
-        vec![R, R, R, F, R, F, R, F, R, R],
-        vec![R, R, R, R, R, F, R, F, R, R],
-        vec![R, F, R, R, R, R, F, F, R, F],
-        vec![R, R, F, R, R, R, R, F, R, R],
-        vec![F, R, R, R, R, R, R, R, F, R],
-        vec![F, R, F, R, F, R, F, R, R, R],
-        vec![R, F, R, R, R, F, R, R, R, R],
-        vec![F, R, R, R, R, R, R, R, R, F],
-        vec![R, F, R, F, R, R, R, F, R, F],
-    ]
-);
-
-test!(day 4, part 1: INPUT => String::from("13"));
-
-test!(day 4, part 2: INPUT => String::from("43"));
-
-impl Parse<Vec<Vec<Tile>>> for Day<4> {
-    fn parse(input: impl AsRef<str>) -> Vec<Vec<Tile>> {
+impl FromInput for Vec<Vec<Tile>> {
+    fn from_input(input: impl AsRef<str>) -> Self {
         input
             .as_ref()
             .lines()
@@ -91,30 +55,31 @@ fn neighbours_count(data: &Vec<Vec<Tile>>, rows: usize, cols: usize, x: usize, y
         .count()
 }
 
-impl PartOne<Vec<Vec<Tile>>> for Day<4> {
-    fn part_1(data: &Vec<Vec<Tile>>) -> String {
+impl Solve for Day<4> {
+    type PartOneData = Vec<Vec<Tile>>;
+    type PartTwoData = Vec<Vec<Tile>>;
+
+    fn part_1(tiles: &Self::PartOneData) -> String {
         let mut reachable_rolls = 0;
-        let rows = data.len();
-        let cols = data[0].len();
-        for (y, row) in data.iter().enumerate() {
+        let rows = tiles.len();
+        let cols = tiles[0].len();
+        for (y, row) in tiles.iter().enumerate() {
             reachable_rolls += row
                 .iter()
                 .copied()
                 .enumerate()
                 .filter(|&(_, tile)| tile == Tile::Roll)
-                .filter(|&(x, _)| neighbours_count(data, rows, cols, x, y) < 4)
+                .filter(|&(x, _)| neighbours_count(tiles, rows, cols, x, y) < 4)
                 .count();
         }
         reachable_rolls.to_string()
     }
-}
 
-impl PartTwo<Vec<Vec<Tile>>> for Day<4> {
-    fn part_2(data: &Vec<Vec<Tile>>) -> String {
+    fn part_2(tiles: &Self::PartTwoData) -> String {
         let mut reachable_rolls = 0;
-        let rows = data.len();
-        let cols = data[0].len();
-        let mut data = data.clone();
+        let rows = tiles.len();
+        let cols = tiles[0].len();
+        let mut data = tiles.clone();
         loop {
             let mut newly_reachable_rolls = 0;
             let mut new_data = data.clone();
@@ -137,4 +102,43 @@ impl PartTwo<Vec<Vec<Tile>>> for Day<4> {
         }
         reachable_rolls.to_string()
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test;
+
+    const INPUT: &str = "..@@.@@@@.
+@@@.@.@.@@
+@@@@@.@.@@
+@.@@@@..@.
+@@.@@@@.@@
+.@@@@@@@.@
+.@.@.@.@@@
+@.@@@.@@@@
+.@@@@@@@@.
+@.@.@@@.@.";
+
+    const R: Tile = Tile::Roll;
+    const F: Tile = Tile::Free;
+
+    test!(day 4, parse: Vec<Vec<Tile>>;
+        INPUT => vec![
+            vec![F, F, R, R, F, R, R, R, R, F],
+            vec![R, R, R, F, R, F, R, F, R, R],
+            vec![R, R, R, R, R, F, R, F, R, R],
+            vec![R, F, R, R, R, R, F, F, R, F],
+            vec![R, R, F, R, R, R, R, F, R, R],
+            vec![F, R, R, R, R, R, R, R, F, R],
+            vec![F, R, F, R, F, R, F, R, R, R],
+            vec![R, F, R, R, R, F, R, R, R, R],
+            vec![F, R, R, R, R, R, R, R, R, F],
+            vec![R, F, R, F, R, R, R, F, R, F],
+        ]
+    );
+
+    test!(day 4, part 1; INPUT => String::from("13"));
+
+    test!(day 4, part 2; INPUT => String::from("43"));
 }

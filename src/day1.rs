@@ -1,17 +1,7 @@
-// #[derive(Debug, PartialEq, Clone)]
-// pub struct Day1 {
-//     pub deltas: Vec<i32>,
-// }
+use crate::{Day, FromInput, Solve};
 
-use crate::{Day, Parse, PartOne, PartTwo, test};
-
-test!(day 1, parse:
-    "L68\nL30\nR48\nL5\nR60\nL55\nL1\nL99\nR14\nL82"
-    => vec![-68, -30, 48, -5, 60, -55, -1, -99, 14, -82]
-);
-
-impl Parse<Vec<i32>> for Day<1> {
-    fn parse(input: impl AsRef<str>) -> Vec<i32> {
+impl FromInput for Vec<i32> {
+    fn from_input(input: impl AsRef<str>) -> Vec<i32> {
         input
             .as_ref()
             .lines()
@@ -28,16 +18,14 @@ impl Parse<Vec<i32>> for Day<1> {
     }
 }
 
-test!(day 1, part 1:
-    "L68\nL30\nR48\nL5\nR60\nL55\nL1\nL99\nR14\nL82"
-    => String::from("3")
-);
+impl Solve for Day<1> {
+    type PartOneData = Vec<i32>;
+    type PartTwoData = Vec<i32>;
 
-impl PartOne<Vec<i32>> for Day<1> {
-    fn part_1(data: &Vec<i32>) -> String {
+    fn part_1(deltas: &Self::PartOneData) -> String {
         let mut position = 50;
         let mut zeros = 0;
-        for delta in data {
+        for delta in deltas {
             position += delta;
             // equivalent to position.rem_euclid(100) because we're only testing for zero.
             if position % 100 == 0 {
@@ -46,18 +34,11 @@ impl PartOne<Vec<i32>> for Day<1> {
         }
         zeros.to_string()
     }
-}
 
-test!(day 1, part 2:
-    "L68\nL30\nR48\nL5\nR60\nL55\nL1\nL99\nR14\nL82"
-    => String::from("6")
-);
-
-impl PartTwo<Vec<i32>> for Day<1> {
-    fn part_2(data: &Vec<i32>) -> String {
+    fn part_2(deltas: &Self::PartTwoData) -> String {
         let mut position = 50;
         let mut zeros = 0;
-        for delta in data {
+        for delta in deltas {
             let guaranteed_clicks = delta / 100; // rounds towards zero
             zeros += guaranteed_clicks.abs();
 
@@ -71,4 +52,18 @@ impl PartTwo<Vec<i32>> for Day<1> {
         }
         zeros.to_string()
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test;
+
+    const INPUT: &'static str = "L68\nL30\nR48\nL5\nR60\nL55\nL1\nL99\nR14\nL82";
+
+    test!(day 1, parse: Vec<i32>; INPUT => vec![-68, -30, 48, -5, 60, -55, -1, -99, 14, -82] );
+
+    test!(day 1, part 1; INPUT => String::from("3"));
+
+    test!(day 1, part 2; INPUT => String::from("6"));
 }
