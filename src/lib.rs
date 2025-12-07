@@ -3,6 +3,7 @@ pub mod day2;
 pub mod day3;
 pub mod day4;
 pub mod day5;
+pub mod day6;
 
 pub struct Day<const N: usize>;
 
@@ -61,7 +62,7 @@ macro_rules! test {
         fn $name() {
             use crate::ToData;
             let parsed: $data = ($input).to_data();
-            assert_eq!(parsed, $parsed);
+            assert_eq!(parsed, ($parsed));
         }
     };
 }
