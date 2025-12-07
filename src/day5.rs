@@ -66,7 +66,18 @@ mod tests {
     use super::*;
     use crate::test;
 
-    const INPUT: &str = "3-5\n10-14\n16-20\n12-18\n\n1\n5\n8\n11\n17\n32";
+    const INPUT: &str = "\
+    3-5\n\
+    10-14\n\
+    16-20\n\
+    12-18\n\
+    \n\
+    1\n\
+    5\n\
+    8\n\
+    11\n\
+    17\n\
+    32";
 
     test!(day 5, parse_part_1: (Vec<RangeInclusive<u64>>, Vec<u64>);
         INPUT => (vec![3..=5, 10..=14, 16..=20, 12..=18], vec![1, 5, 8, 11, 17, 32])

@@ -54,7 +54,11 @@ impl Solve for Day<3> {
 mod tests {
     use super::*;
     use crate::test;
-    const INPUT: &str = "987654321111111\n811111111111119\n234234234234278\n818181911112111";
+    const INPUT: &str = "\
+        987654321111111\n\
+        811111111111119\n\
+        234234234234278\n\
+        818181911112111";
 
     test!(day 3, parse: Vec<Vec<u64>>;
         INPUT => vec![

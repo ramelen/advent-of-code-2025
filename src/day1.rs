@@ -59,7 +59,17 @@ mod tests {
     use super::*;
     use crate::test;
 
-    const INPUT: &'static str = "L68\nL30\nR48\nL5\nR60\nL55\nL1\nL99\nR14\nL82";
+    const INPUT: &'static str = "\
+        L68\n\
+        L30\n\
+        R48\n\
+        L5\n\
+        R60\n\
+        L55\n\
+        L1\n\
+        L99\n\
+        R14\n\
+        L82";
 
     test!(day 1, parse: Vec<i32>; INPUT => vec![-68, -30, 48, -5, 60, -55, -1, -99, 14, -82] );
 
