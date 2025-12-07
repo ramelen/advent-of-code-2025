@@ -7,7 +7,7 @@ fn main() {
     solve::<4>(include_str!("day4.txt"));
     solve::<5>(include_str!("day5.txt"));
     solve::<6>(include_str!("day6.txt"));
-    // solve::<7>(include_str!("day7.txt"));
+    solve::<7>(include_str!("day7.txt"));
     // solve::<8>(include_str!("day8.txt"));
     // solve::<9>(include_str!("day9.txt"));
     // solve::<10>(include_str!("day10.txt"));
