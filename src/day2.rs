@@ -22,34 +22,27 @@ impl Solve for Day<2> {
     fn part_1(ids: &Self::PartOneData) -> String {
         ids.iter()
             .copied() // does this do anything?
-            .filter(|num| {
-                let num_str = num.to_string();
-                let len = num_str.len();
+            .filter(|&id| {
+                let digits = id.to_string();
+                let len = digits.len();
                 // checking if the length is even is techically unnecessary
-                len % 2 == 0 && num_str[..len / 2] == num_str[len / 2..]
+                len % 2 == 0 && digits[..len / 2] == digits[len / 2..]
             })
             .sum::<u64>()
             .to_string()
     }
 
     fn part_2(ids: &Self::PartTwoData) -> String {
-        let mut id_sum = 0;
-        for num in ids {
-            // if number is two numbers repeated twice, add it to the total
-            let num_str = num.to_string();
-            let len = num_str.len();
-            for divisions in 2..=len {
-                if len % divisions != 0 {
-                    continue;
-                }
-                let sub_string = &num_str[..len / divisions];
-                if sub_string.repeat(divisions) == num_str {
-                    id_sum += num;
-                    break;
-                }
-            }
-        }
-        id_sum.to_string()
+        ids.iter()
+            .filter(|&&id| {
+                let num_str = id.to_string();
+                let len = num_str.len();
+                (2..=len)
+                    .filter(|factor| len % factor == 0)
+                    .any(|factor| num_str[..len / factor].repeat(factor) == num_str)
+            })
+            .sum::<u64>()
+            .to_string()
     }
 }
 
@@ -72,7 +65,7 @@ mod tests {
         2121212118-2121212124";
 
     test!(day 2, parse: Vec<u64>;
-        INPUT => vec![
+        INPUT => [
             11..=22,
             95..=115,
             998..=1012,
