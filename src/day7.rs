@@ -52,10 +52,10 @@ impl Solve for Day<7> {
 
             for (x, tile) in row.iter().enumerate() {
                 match (previous_row[x], *tile) {
+                    (0, _) => {}
                     (incoming, Tile::Empty) => {
                         current_row[x] += incoming;
                     }
-                    (0, Tile::Splitter) => {}
                     (incoming, Tile::Splitter) => {
                         split_count += 1;
 
@@ -84,10 +84,10 @@ impl Solve for Day<7> {
 
             for (x, tile) in row.iter().enumerate() {
                 match (previous_row[x], *tile) {
+                    (0, _) => {}
                     (incoming, Tile::Empty) => {
                         current_row[x] += incoming;
                     }
-                    (0, Tile::Splitter) => {}
                     (incoming, Tile::Splitter) => {
                         paths += incoming;
 

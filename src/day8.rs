@@ -6,32 +6,34 @@ pub enum Tile {
     Splitter,
 }
 
-impl FromInput for Vec<(i64, i64, i64)> {
+impl FromInput for Vec<(u64, u64, u64)> {
     fn from_input(input: impl AsRef<str>) -> Self {
         input
             .as_ref()
             .lines()
             .map(|l| {
                 l.split(',')
-                    .map(|s| s.parse::<i64>().unwrap())
-                    .collect::<Vec<i64>>()
+                    .map(|s| s.parse::<u64>().unwrap())
+                    .collect::<Vec<u64>>()
             })
             .map(|l| (l[0], l[1], l[2]))
             .collect()
     }
 }
 
-fn square_dist((x1, y1, z1): (i64, i64, i64), (x2, y2, z2): (i64, i64, i64)) -> i64 {
-    (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1) + (z2 - z1) * (z2 - z1)
+fn square_dist((x1, y1, z1): (u64, u64, u64), (x2, y2, z2): (u64, u64, u64)) -> u64 {
+    x1.abs_diff(x2) * x1.abs_diff(x2)
+        + y1.abs_diff(y2) * y1.abs_diff(y2)
+        + z1.abs_diff(z2) * z1.abs_diff(z2)
 }
 
 impl Solve for Day<8> {
-    type PartOneData = Vec<(i64, i64, i64)>;
-    type PartTwoData = Vec<(i64, i64, i64)>;
+    type PartOneData = Vec<(u64, u64, u64)>;
+    type PartTwoData = Vec<(u64, u64, u64)>;
 
     fn part_1(junctions: &Self::PartOneData) -> String {
         let pairs = {
-            let mut vec: Vec<((i64, i64, i64), (i64, i64, i64))> = junctions
+            let mut vec: Vec<((u64, u64, u64), (u64, u64, u64))> = junctions
                 .iter()
                 .enumerate()
                 .flat_map(|(i, &first)| {
@@ -43,7 +45,7 @@ impl Solve for Day<8> {
             vec
         };
 
-        let mut circuits: Vec<Vec<(i64, i64, i64)>> =
+        let mut circuits: Vec<Vec<(u64, u64, u64)>> =
             junctions.iter().map(|&junction| vec![junction]).collect();
 
         #[cfg(test)]
@@ -80,7 +82,7 @@ impl Solve for Day<8> {
 
     fn part_2(junctions: &Self::PartOneData) -> String {
         let pairs = {
-            let mut vec: Vec<((i64, i64, i64), (i64, i64, i64))> = junctions
+            let mut vec: Vec<((u64, u64, u64), (u64, u64, u64))> = junctions
                 .iter()
                 .enumerate()
                 .flat_map(|(i, &first)| {
@@ -92,7 +94,7 @@ impl Solve for Day<8> {
             vec
         };
 
-        let mut circuits: Vec<Vec<(i64, i64, i64)>> =
+        let mut circuits: Vec<Vec<(u64, u64, u64)>> =
             junctions.iter().map(|&junction| vec![junction]).collect();
 
         for (first, second) in pairs {
@@ -143,7 +145,7 @@ mod tests {
         984,92,344\n\
         425,690,689";
 
-    test!(day 8, parse: Vec<(i64, i64, i64)>;
+    test!(day 8, parse: Vec<(u64, u64, u64)>;
         INPUT => vec![
             (162, 817, 812),
             (57, 618, 57),

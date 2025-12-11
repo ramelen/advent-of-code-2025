@@ -115,7 +115,7 @@ impl Solve for Day<6> {
     fn part_1(problems: &Self::PartOneData) -> String {
         problems
             .iter()
-            .map(|problem| problem.evaluate())
+            .map(Problem::evaluate)
             .sum::<u64>()
             .to_string()
     }
@@ -123,7 +123,7 @@ impl Solve for Day<6> {
     fn part_2(problems: &Self::PartTwoData) -> String {
         problems
             .iter()
-            .map(|problem| problem.evaluate())
+            .map(CephalopodProblem::evaluate)
             .sum::<u64>()
             .to_string()
     }

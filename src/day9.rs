@@ -1,26 +1,26 @@
 use crate::{Day, FromInput, Solve};
 
-impl FromInput for Vec<(i64, i64)> {
+impl FromInput for Vec<(u64, u64)> {
     fn from_input(input: impl AsRef<str>) -> Self {
         input
             .as_ref()
             .lines()
             .map(|l| l.split_once(',').unwrap())
-            .map(|(x, y)| (x.parse::<i64>().unwrap(), y.parse::<i64>().unwrap()))
+            .map(|(x, y)| (x.parse::<u64>().unwrap(), y.parse::<u64>().unwrap()))
             .collect()
     }
 }
 
 impl Solve for Day<9> {
-    type PartOneData = Vec<(i64, i64)>;
-    type PartTwoData = Vec<(i64, i64)>;
+    type PartOneData = Vec<(u64, u64)>;
+    type PartTwoData = Vec<(u64, u64)>;
 
     fn part_1(tiles: &Self::PartOneData) -> String {
         tiles
             .iter()
             .enumerate()
             .flat_map(|(i, first)| std::iter::repeat(first).zip(tiles.iter().skip(i + 1)))
-            .map(|((x1, y1), (x2, y2))| (1 + (x2 - x1).abs()) * (1 + (y2 - y1).abs()))
+            .map(|(&(x1, y1), &(x2, y2))| (1 + x1.abs_diff(x2)) * (1 + y1.abs_diff(y2)))
             .max()
             .unwrap()
             .to_string()
@@ -28,24 +28,24 @@ impl Solve for Day<9> {
 
     fn part_2(tiles: &Self::PartTwoData) -> String {
         let x_coords = {
-            let mut vec: Vec<i64> = tiles.iter().map(|&(x, _)| x).collect();
+            let mut vec: Vec<u64> = tiles.iter().map(|&(x, _)| x).collect();
             vec.sort();
             vec.dedup();
             vec
         };
         let y_coords = {
-            let mut vec: Vec<i64> = tiles.iter().map(|&(_, y)| y).collect();
+            let mut vec: Vec<u64> = tiles.iter().map(|&(_, y)| y).collect();
             vec.sort();
             vec.dedup();
             vec
         };
 
-        let new_tiles: Vec<(i64, i64)> = tiles
+        let new_tiles: Vec<(u64, u64)> = tiles
             .iter()
             .map(|&(x, y)| {
                 (
-                    2 * x_coords.iter().filter(|&&sorted| sorted < x).count() as i64,
-                    2 * y_coords.iter().filter(|&&sorted| sorted < y).count() as i64,
+                    2 * x_coords.iter().filter(|&&sorted| sorted < x).count() as u64,
+                    2 * y_coords.iter().filter(|&&sorted| sorted < y).count() as u64,
                 )
             })
             .collect();
@@ -63,7 +63,7 @@ impl Solve for Day<9> {
         };
 
         let edges = firsts.into_iter().zip(seconds.into_iter());
-        let mut edge_tiles: Vec<(i64, i64)> = Vec::new();
+        let mut edge_tiles: Vec<(u64, u64)> = Vec::new();
 
         for ((x1, y1), (x2, y2)) in edges {
             if x1 == x2 {
@@ -72,7 +72,7 @@ impl Solve for Day<9> {
                 edge_tiles.extend(
                     ((min_y + 1)..=(max_y - 1))
                         .map(|y| (x1, y))
-                        .collect::<Vec<(i64, i64)>>(),
+                        .collect::<Vec<(u64, u64)>>(),
                 );
             } else if y1 == y2 {
                 let max_x = x1.max(x2);
@@ -80,7 +80,7 @@ impl Solve for Day<9> {
                 edge_tiles.extend(
                     ((min_x + 1)..=(max_x - 1))
                         .map(|x| (x, y1))
-                        .collect::<Vec<(i64, i64)>>(),
+                        .collect::<Vec<(u64, u64)>>(),
                 );
             } else {
                 unreachable!()
@@ -147,7 +147,7 @@ mod tests {
         2,3\n\
         7,3";
 
-    test!(day 9, parse: Vec<(i64, i64)>;
+    test!(day 9, parse: Vec<(u64, u64)>;
         INPUT => vec![
             (7, 1),
             (11,1),

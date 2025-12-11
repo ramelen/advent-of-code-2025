@@ -28,7 +28,7 @@ impl Solve for Day<3> {
     fn part_2(banks: &Self::PartTwoData) -> String {
         let mut total_joltage: u64 = 0;
         for bank in banks {
-            let mut remaining_bank = bank.clone();
+            let mut remaining_bank = bank.to_owned();
             for digit in (0..12).rev() {
                 let digit_value: &u64 = remaining_bank.iter().rev().skip(digit).max().unwrap();
 

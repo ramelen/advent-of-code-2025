@@ -23,16 +23,15 @@ impl Solve for Day<1> {
     type PartTwoData = Vec<i32>;
 
     fn part_1(deltas: &Self::PartOneData) -> String {
-        let mut position = 50;
-        let mut zeros = 0;
-        for delta in deltas {
-            position += delta;
-            // equivalent to position.rem_euclid(100) because we're only testing for zero.
-            if position % 100 == 0 {
-                zeros += 1;
-            }
-        }
-        zeros.to_string()
+        deltas
+            .iter()
+            .scan(50, |position, delta| {
+                *position += delta;
+                Some(*position % 100)
+            })
+            .filter(|&position| position == 0)
+            .count()
+            .to_string()
     }
 
     fn part_2(deltas: &Self::PartTwoData) -> String {

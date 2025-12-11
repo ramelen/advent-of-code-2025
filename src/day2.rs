@@ -21,8 +21,7 @@ impl Solve for Day<2> {
 
     fn part_1(ids: &Self::PartOneData) -> String {
         ids.iter()
-            .copied() // does this do anything?
-            .filter(|&id| {
+            .filter(|&&id| {
                 let digits = id.to_string();
                 let len = digits.len();
                 // checking if the length is even is techically unnecessary

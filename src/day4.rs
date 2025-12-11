@@ -60,39 +60,45 @@ impl Solve for Day<4> {
     type PartTwoData = Vec<Vec<Tile>>;
 
     fn part_1(tiles: &Self::PartOneData) -> String {
-        let mut reachable_rolls = 0;
         let rows = tiles.len();
         let cols = tiles[0].len();
-        for (y, row) in tiles.iter().enumerate() {
-            reachable_rolls += row
-                .iter()
-                .copied()
-                .enumerate()
-                .filter(|&(_, tile)| tile == Tile::Roll)
-                .filter(|&(x, _)| neighbours_count(tiles, rows, cols, x, y) < 4)
-                .count();
-        }
-        reachable_rolls.to_string()
+
+        tiles
+            .iter()
+            .enumerate()
+            .flat_map(|(y, row)| {
+                row.iter()
+                    .enumerate()
+                    .filter(|&(_, &tile)| tile == Tile::Roll)
+                    .filter(move |&(x, _)| neighbours_count(tiles, rows, cols, x, y) < 4)
+            })
+            .count()
+            .to_string()
     }
 
     fn part_2(tiles: &Self::PartTwoData) -> String {
-        let mut reachable_rolls = 0;
         let rows = tiles.len();
         let cols = tiles[0].len();
-        let mut data = tiles.clone();
+
+        let mut reachable_rolls = 0;
+        let mut data = tiles.to_owned();
+
         loop {
-            let mut newly_reachable_rolls = 0;
-            let mut new_data = data.clone();
-            for (y, row) in data.iter().enumerate() {
-                newly_reachable_rolls += row
-                    .iter()
-                    .copied()
-                    .enumerate()
-                    .filter(|&(_, tile)| tile == Tile::Roll)
-                    .filter(|&(x, _)| neighbours_count(&data, rows, cols, x, y) < 4)
-                    .inspect(|&(x, _)| new_data[y][x] = Tile::Free)
-                    .count();
-            }
+            let mut new_data = data.to_owned();
+
+            let newly_reachable_rolls = data
+                .iter()
+                .enumerate()
+                .flat_map(|(y, row)| {
+                    row.iter()
+                        .enumerate()
+                        .filter(|&(_, &tile)| tile == Tile::Roll)
+                        .map(move |(x, _)| (x, y))
+                })
+                .filter(|&(x, y)| neighbours_count(&data, rows, cols, x, y) < 4)
+                .inspect(|&(x, y)| new_data[y][x] = Tile::Free)
+                .count();
+
             if newly_reachable_rolls == 0 {
                 break;
             } else {
