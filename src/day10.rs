@@ -110,33 +110,22 @@ impl Solve for Day<10> {
         use rayon::prelude::*;
         machines
             .par_iter()
-            .enumerate()
-            .map(|(i, (_lights, buttons, joltages))| solve_machine(i, buttons, joltages))
+            .map(|(_lights, buttons, joltages)| solve_machine(buttons, joltages))
             .sum::<u64>()
             .to_string()
     }
 }
 
-fn solve_machine(machine_number: usize, buttons: &Vec<Vec<u64>>, joltages: &Vec<u64>) -> u64 {
+fn solve_machine(buttons: &Vec<Vec<u64>>, joltages: &Vec<u64>) -> u64 {
     let mut joltage_states = vec![joltages.to_owned()];
     let mut button_states = vec![buttons.to_owned()];
     let mut press_states = vec![0];
-    let mut start = std::time::Instant::now();
-
     let mut min_presses = u64::MAX;
 
     'outer: while !joltage_states.is_empty() {
         let joltage_state = joltage_states.pop().unwrap();
         let button_state = button_states.pop().unwrap();
         let press_state = press_states.pop().unwrap();
-
-        if start.elapsed().as_secs() != 0 {
-            start = std::time::Instant::now();
-            println!(
-                "there are {:7} states left for machine {machine_number:3}, and min_presses = {min_presses:3} :o",
-                joltage_states.len()
-            );
-        }
 
         let max_joltage = joltage_state.iter().max().unwrap();
         if press_state + max_joltage >= min_presses {
@@ -188,9 +177,6 @@ fn solve_machine(machine_number: usize, buttons: &Vec<Vec<u64>>, joltages: &Vec<
             if new_joltage_state.iter().all(|&item| item == 0) {
                 if new_press_state < min_presses {
                     min_presses = new_press_state;
-                    println!(
-                        "we found a new best solution ({min_presses:3}) for machine {machine_number}"
-                    )
                 }
                 continue;
             }
@@ -200,7 +186,6 @@ fn solve_machine(machine_number: usize, buttons: &Vec<Vec<u64>>, joltages: &Vec<
             press_states.push(new_press_state);
         }
     }
-    println!("we finished machine {machine_number}!!!!");
     min_presses
 }
 
