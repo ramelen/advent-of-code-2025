@@ -1,5 +1,7 @@
 pub mod day1;
 pub mod day10;
+pub mod day11;
+pub mod day12;
 pub mod day2;
 pub mod day3;
 pub mod day4;
@@ -46,14 +48,14 @@ where
     let part_1_start = Instant::now();
     let solution_1 = Day::<N>::part_1(&input.to_data());
     println!(
-        "Day {N} Part 1 (took {:8.3} ms): {solution_1}",
+        "Day {N:2} Part 1 (took {:8.3} ms): {solution_1}",
         1000.0 * part_1_start.elapsed().as_secs_f64()
     );
 
     let part_2_start = Instant::now();
     let solution_2 = Day::<N>::part_2(&input.to_data());
     println!(
-        "Day {N} Part 2 (took {:8.3} ms): {solution_2}",
+        "Day {N:2} Part 2 (took {:8.3} ms): {solution_2}",
         1000.0 * part_2_start.elapsed().as_secs_f64()
     );
 }

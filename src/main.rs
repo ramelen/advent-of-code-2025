@@ -11,6 +11,6 @@ fn main() {
     solve::<8>(include_str!("day8.txt"));
     solve::<9>(include_str!("day9.txt"));
     // solve::<10>(include_str!("day10.txt"));
-    // solve::<11>(include_str!("day11.txt"));
-    // solve::<12>(include_str!("day12.txt"));
+    solve::<11>(include_str!("day11.txt"));
+    solve::<12>(include_str!("day12.txt"));
 }
