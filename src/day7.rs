@@ -47,8 +47,7 @@ impl Solve for Day<7> {
         let mut split_count = 0;
 
         for row in rest {
-            let mut current_row = Vec::new();
-            current_row.resize(len, 0);
+            let mut current_row = vec![0; len];
 
             for (x, tile) in row.iter().enumerate() {
                 match (previous_row[x], *tile) {
@@ -79,8 +78,7 @@ impl Solve for Day<7> {
         let mut paths = 1;
 
         for row in rest {
-            let mut current_row = Vec::new();
-            current_row.resize(len, 0);
+            let mut current_row = vec![0; len];
 
             for (x, tile) in row.iter().enumerate() {
                 match (previous_row[x], *tile) {
@@ -114,7 +112,7 @@ mod tests {
     const E: Tile = Tile::Empty;
     const S: Tile = Tile::Splitter;
 
-    const INPUT: &'static str = "\
+    const INPUT: &str = "\
         .......S.......\n\
         ...............\n\
         .......^.......\n\

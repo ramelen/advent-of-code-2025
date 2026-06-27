@@ -55,13 +55,10 @@ impl Solve for Day<8> {
         const TAKE_AMOUNT: usize = 1000;
 
         for (first, second) in pairs.iter().take(TAKE_AMOUNT) {
-            let first_circuit_i = circuits
-                .iter()
-                .position(|vec| vec.contains(&first))
-                .unwrap();
+            let first_circuit_i = circuits.iter().position(|vec| vec.contains(first)).unwrap();
             let mut first_circuit = circuits.remove(first_circuit_i);
 
-            if let Some(second_circuit_i) = circuits.iter().position(|vec| vec.contains(&second)) {
+            if let Some(second_circuit_i) = circuits.iter().position(|vec| vec.contains(second)) {
                 circuits[second_circuit_i].append(&mut first_circuit);
             } else {
                 circuits.push(first_circuit);
@@ -123,7 +120,7 @@ mod tests {
     use super::*;
     use crate::test;
 
-    const INPUT: &'static str = "\
+    const INPUT: &str = "\
         162,817,812\n\
         57,618,57\n\
         906,360,560\n\

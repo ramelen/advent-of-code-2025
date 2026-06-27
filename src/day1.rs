@@ -58,7 +58,7 @@ mod tests {
     use super::*;
     use crate::test;
 
-    const INPUT: &'static str = "\
+    const INPUT: &str = "\
         L68\n\
         L30\n\
         R48\n\

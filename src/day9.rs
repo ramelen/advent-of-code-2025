@@ -62,7 +62,7 @@ impl Solve for Day<9> {
             vec
         };
 
-        let edges = firsts.into_iter().zip(seconds.into_iter());
+        let edges = firsts.into_iter().zip(seconds);
         let mut edge_tiles: Vec<(u64, u64)> = Vec::new();
 
         for ((x1, y1), (x2, y2)) in edges {

@@ -50,7 +50,7 @@ mod tests {
     use super::*;
     use crate::test;
 
-    const INPUT: &'static str = "\
+    const INPUT: &str = "\
         11-22,\
         95-115,\
         998-1012,\

@@ -40,7 +40,7 @@ impl FromInput for Vec<Problem> {
 
         let mut problems = Vec::new();
 
-        for i in 0..(&lines).last().unwrap().len() {
+        for i in 0..lines.last().unwrap().len() {
             let mut nums = Vec::new();
             for vec in &lines {
                 if let Ok(num) = vec[i].parse::<u64>() {

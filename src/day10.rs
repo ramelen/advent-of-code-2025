@@ -46,7 +46,7 @@ impl FromInput for Vec<(Vec<Light>, Vec<Vec<u64>>, Vec<u64>)> {
                 .collect();
 
             let buttons: Vec<Vec<u64>> = parts[1..len - 1]
-                .into_iter()
+                .iter()
                 .map(|button| {
                     button
                         .strip_prefix('(')
@@ -93,7 +93,7 @@ impl Solve for Day<10> {
                     let mut light_state = vec![Light::Off; lights.len()];
 
                     combo
-                        .into_iter()
+                        .iter()
                         .for_each(|&light| light_state[light as usize].flip());
 
                     light_state == *lights
@@ -122,8 +122,7 @@ fn solve_machine(buttons: &Vec<Vec<u64>>, joltages: &Vec<u64>) -> u64 {
     let mut press_states = vec![0];
     let mut min_presses = u64::MAX;
 
-    'outer: while !joltage_states.is_empty() {
-        let joltage_state = joltage_states.pop().unwrap();
+    'outer: while let Some(joltage_state) = joltage_states.pop() {
         let button_state = button_states.pop().unwrap();
         let press_state = press_states.pop().unwrap();
 
@@ -201,11 +200,7 @@ fn partitions(bins: usize, max: u64) -> Vec<Vec<u64>> {
             .flat_map(|n| {
                 partitions(bins - 1, max - n)
                     .into_iter()
-                    .map(move |partition| {
-                        std::iter::once(n)
-                            .chain(partition.into_iter())
-                            .collect::<Vec<u64>>()
-                    })
+                    .map(move |partition| std::iter::once(n).chain(partition).collect::<Vec<u64>>())
             })
             .collect()
     }

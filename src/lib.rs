@@ -1,3 +1,5 @@
+#![expect(clippy::type_complexity, reason = "types are inlined for consistency")]
+
 pub mod day1;
 pub mod day10;
 pub mod day11;
@@ -61,6 +63,10 @@ where
 }
 
 #[macro_export]
+#[expect(
+    clippy::crate_in_macro_def,
+    reason = "macro is never used outside of current crate"
+)]
 macro_rules! test {
     (day $day:expr, part 1; $input:expr => $output:expr) => {
         #[test]

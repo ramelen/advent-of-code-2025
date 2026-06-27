@@ -24,7 +24,7 @@ impl FromInput for Vec<Vec<Tile>> {
     }
 }
 
-fn neighbours_count(data: &Vec<Vec<Tile>>, rows: usize, cols: usize, x: usize, y: usize) -> usize {
+fn neighbours_count(data: &[Vec<Tile>], rows: usize, cols: usize, x: usize, y: usize) -> usize {
     let left_x = x.checked_sub(1);
     let center_x = Some(x);
     let right_x = if x + 1 < cols { Some(x + 1) } else { None };

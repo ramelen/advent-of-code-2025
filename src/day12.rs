@@ -62,6 +62,7 @@ impl Shape<3> {
         V: std::ops::Index<usize> + ?Sized,
         <V as std::ops::Index<usize>>::Output: std::ops::Index<usize, Output = Tile>,
     {
+        #[expect(clippy::identity_op, reason = "`+0` makes the alignment nicer")]
         Self([
             [rows[y + 0][x], rows[y + 0][x + 1], rows[y + 0][x + 2]],
             [rows[y + 1][x], rows[y + 1][x + 1], rows[y + 1][x + 2]],
@@ -102,7 +103,7 @@ impl Shape<3> {
     fn overlaps_with(&self, other: Self) -> bool {
         self.as_array()
             .into_iter()
-            .zip(other.as_array().into_iter())
+            .zip(other.as_array())
             .any(|(self_tile, other_tile)| other_tile.is_nonempty() && self_tile.is_nonempty())
     }
 
@@ -142,6 +143,7 @@ impl Shape<5> {
         V: std::ops::Index<usize> + ?Sized,
         <V as std::ops::Index<usize>>::Output: std::ops::Index<usize, Output = Tile>,
     {
+        #[expect(clippy::identity_op, reason = "`+0` makes the alignment nicer")]
         Self([
             [
                 rows[y + 0][x + 0],
@@ -181,7 +183,7 @@ impl Shape<5> {
         ])
     }
 
-    fn can_contain_present(self, presents: &Vec<(usize, Vec<Shape<3>>)>) -> bool {
+    fn can_contain_present(self, presents: &[(usize, Vec<Shape<3>>)]) -> bool {
         if self.0[2][2].is_nonempty() {
             return false;
         };
@@ -285,7 +287,11 @@ impl Solve for Day<12> {
         Vec<((usize, usize), Vec<usize>)>,
     );
 
-    fn part_1((presents_pre_transformed, regions): &Self::PartOneData) -> String {
+    #[cfg_attr(
+        test,
+        expect(unused_variables, reason = "variables are unneeded in the test case")
+    )]
+    fn part_1((_presents_pre_transformed, regions): &Self::PartOneData) -> String {
         #[cfg(test)]
         return String::from("2");
         // note: this does not work in general, just for the specific data I was given >:D
@@ -366,6 +372,10 @@ impl Solve for Day<12> {
                                 continue;
                             }
 
+                            #[expect(
+                                clippy::identity_op,
+                                reason = "`+0` makes the alignment nicer"
+                            )]
                             let has_neighbours = [
                                 region[y + 0][x + 1],
                                 region[y + 0][x + 2],

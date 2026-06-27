@@ -8,7 +8,7 @@ impl FromInput for (Vec<RangeInclusive<u64>>, Vec<u64>) {
         let parsed_ranges = ranges
             .lines()
             .map(|l| l.split_once('-').unwrap())
-            .map(|(start, end)| (start.parse::<u64>().unwrap()..=end.parse::<u64>().unwrap()));
+            .map(|(start, end)| start.parse::<u64>().unwrap()..=end.parse::<u64>().unwrap());
 
         let parsed_ids = ids.lines().map(|l| l.parse::<u64>().unwrap());
 
@@ -38,7 +38,7 @@ impl Solve for Day<5> {
 
     fn part_1((ranges, ids): &Self::PartOneData) -> String {
         ids.iter()
-            .filter(|id| ranges.iter().any(|range| range.contains(&id)))
+            .filter(|id| ranges.iter().any(|range| range.contains(id)))
             .count()
             .to_string()
     }
