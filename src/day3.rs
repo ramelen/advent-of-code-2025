@@ -1,75 +1,91 @@
-use crate::{Day, FromInput, Solve};
+use crate::util::*;
 
-impl FromInput for Vec<Vec<u64>> {
-    fn from_input(input: impl AsRef<str>) -> Self {
-        input
-            .as_ref()
-            .lines()
-            .map(|l| l.chars().map(|c| c.to_digit(10).unwrap().into()).collect())
-            .collect()
-    }
+pub const SOLUTIONS: &[&dyn Solver] = &[
+    &Solution::new(3, Part::One, &parse, &solve::<2>),
+    &Solution::new(3, Part::Two, &parse, &solve::<12>),
+];
+
+// parse input into a list of banks
+fn parse(input: &str) -> Result<Vec<Vec<u64>>, String> {
+    input.lines().map(helpers::parse_bank).collect()
 }
 
-impl Solve for Day<3> {
-    type PartOneData = Vec<Vec<u64>>;
-    type PartTwoData = Vec<Vec<u64>>;
+// calculate the maximum joltage for each bank, which is the highest N-digit number formed by concatenating N of its batteries' joltage ratings together
+fn solve<const N: usize>(banks: Vec<Vec<u64>>) -> Result<u64, String> {
+    banks
+        .into_iter()
+        .flat_map(|mut bank| {
+            // reverse the bank so that more significant digits come first
+            bank.reverse();
+            // maximize the most significant digit, then the second most significant, etc.
+            (0..N).rev().scan(bank, |reversed_bank, i| {
+                Some(helpers::max_ith_digit::<N>(reversed_bank, i))
+            })
+        })
+        .sum()
+}
 
-    fn part_1(banks: &Self::PartOneData) -> String {
-        let mut total_joltage = 0;
-        for bank in banks {
-            let tens_digit = bank.iter().rev().skip(1).max().unwrap();
-            let tens_index = bank.iter().position(|j| j == tens_digit).unwrap();
-            let ones_digit = bank.iter().skip(tens_index + 1).max().unwrap();
-            total_joltage += 10 * tens_digit + ones_digit;
-        }
-        total_joltage.to_string()
+mod helpers {
+    // parse a base ten digit into a battery's 'joltage rating'
+    pub fn parse_digit(digit_char: char) -> Result<u64, String> {
+        digit_char
+            .to_digit(10)
+            .ok_or_else(|| format!("no such digit '{digit_char}'"))
+            .map(u64::from)
     }
 
-    fn part_2(banks: &Self::PartTwoData) -> String {
-        let mut total_joltage: u64 = 0;
-        for bank in banks {
-            let mut remaining_bank = bank.to_owned();
-            for digit in (0..12).rev() {
-                let digit_value: &u64 = remaining_bank.iter().rev().skip(digit).max().unwrap();
+    // parse a string of digits (joltage ratings) into a bank
+    pub fn parse_bank(bank_str: &str) -> Result<Vec<u64>, String> {
+        bank_str.chars().map(parse_digit).collect()
+    }
 
-                let digit_index = remaining_bank
-                    .iter()
-                    .position(|j| j == digit_value)
-                    .unwrap();
+    // find the battery with the highest joltage rating and reduce the size of the bank
+    pub fn max_ith_digit<const N: usize>(bank: &mut Vec<u64>, i: usize) -> Result<u64, String> {
+        // get the index and joltage of the battery with the highest rating
+        let (index, rating) = bank
+            .iter()
+            .skip(i) // the skipped elements will be needed for less significant digits
+            .max() // maximize the rating
+            .map(|element| (bank.element_offset(element).unwrap(), *element)) // get the battery's index as well
+            .ok_or_else(|| format!("there must be at least {N} joltage ratings in each cell"))?;
 
-                total_joltage += 10u64.pow(digit.try_into().unwrap()) * digit_value;
+        // truncate the reversed bank to hold only the remaining batteries
+        bank.truncate(index);
 
-                remaining_bank = remaining_bank
-                    .iter()
-                    .skip(digit_index + 1)
-                    .cloned()
-                    .collect();
-            }
-        }
-        total_joltage.to_string()
+        // the joltage rating multiplied by its place value
+        Ok(rating * 10u64.pow(i as u32))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test;
+
     const INPUT: &str = "\
         987654321111111\n\
         811111111111119\n\
         234234234234278\n\
         818181911112111";
 
-    test!(day 3, parse: Vec<Vec<u64>>;
-        INPUT => vec![
+    #[test]
+    fn test_parse() {
+        let expected = vec![
             vec![9, 8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1],
             vec![8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 9],
             vec![2, 3, 4, 2, 3, 4, 2, 3, 4, 2, 3, 4, 2, 7, 8],
             vec![8, 1, 8, 1, 8, 1, 9, 1, 1, 1, 1, 2, 1, 1, 1],
-        ]
-    );
+        ];
 
-    test!(day 3, part 1; INPUT => String::from("357"));
+        assert_eq!(Ok(expected), parse(INPUT));
+    }
 
-    test!(day 3, part 2; INPUT => String::from("3121910778619"));
+    #[test]
+    fn test_solve_part_one() {
+        assert_eq!(Ok(357), parse(INPUT).and_then(solve::<2>));
+    }
+
+    #[test]
+    fn test_solve_part_two() {
+        assert_eq!(Ok(3121910778619), parse(INPUT).and_then(solve::<12>));
+    }
 }

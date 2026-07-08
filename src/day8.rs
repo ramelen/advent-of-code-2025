@@ -1,124 +1,140 @@
-use crate::{Day, FromInput, Solve};
+use crate::util::*;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Tile {
-    Empty,
-    Splitter,
+pub use helpers::parse_point;
+pub const SOLUTIONS: &[&dyn Solver] = &[
+    &Solution::new(8, Part::One, &parse, &solve_part_one::<1000>),
+    &Solution::new(8, Part::Two, &parse, &solve_part_two),
+];
+
+// parse input into list of 3d points
+fn parse(input: &str) -> Result<Vec<[u64; 3]>, String> {
+    input.lines().map(helpers::parse_point).collect()
 }
 
-impl FromInput for Vec<(u64, u64, u64)> {
-    fn from_input(input: impl AsRef<str>) -> Self {
-        input
-            .as_ref()
-            .lines()
-            .map(|l| {
-                l.split(',')
-                    .map(|s| s.parse::<u64>().unwrap())
-                    .collect::<Vec<u64>>()
+// find the product of the sizes of the three largest circuits after the closest `NUM_MERGES` pairs of junctions have been merged into the same circuit
+fn solve_part_one<const NUM_MERGES: usize>(junctions: Vec<[u64; 3]>) -> Result<u64, String> {
+    Ok(junctions
+        .iter()
+        // create a list of lists that each contain one junction
+        .map(|&junction| vec![junction])
+        .collect::<Vec<Vec<[u64; 3]>>>()
+        // merge some of the circuits together according to the rules
+        .mutate(|circuits| helpers::merge_circuits::<NUM_MERGES>(circuits, &junctions))
+        // find the product of the top three lengths
+        .into_iter()
+        // convert to lengths
+        .map(|circuit| circuit.len() as u64)
+        .collect::<Vec<u64>>()
+        // sort by circuit length
+        .mutate(|lengths| lengths.sort())
+        .into_iter()
+        .rev()
+        // get the top three
+        .take(3)
+        // find their product
+        .product())
+}
+
+// find the product of the x-coordinates of the junctions that will be merged last
+fn solve_part_two(junctions: Vec<[u64; 3]>) -> Result<u64, String> {
+    // create a list of lists that each contain one junction
+    let mut circuits = junctions
+        .iter()
+        .map(|&junction| vec![junction])
+        .collect::<Vec<Vec<[u64; 3]>>>();
+
+    // repeatedly merge circuits until there is only one left
+    Ok(junctions
+        .iter()
+        .enumerate()
+        // iterate over pairs of junctions
+        .flat_map(|(i, &first)| std::iter::repeat(first).zip(junctions.iter().copied().skip(i + 1)))
+        .collect::<Vec<([u64; 3], [u64; 3])>>()
+        // sort pairs by their distance to each other
+        .mutate(|pairs| pairs.sort_by_cached_key(helpers::square_dist))
+        .into_iter()
+        // merge each pair until there is only one circuit left
+        .find_map(|(first, second)| {
+            helpers::merge_pair(&mut circuits, first, second);
+            // the product of the x-coordinates of the last pair to be merged
+            (circuits.len() == 1).then_some(first[0] * second[0])
+        })
+        .expect("the loop should eventually merge all circuits"))
+}
+
+mod helpers {
+    use super::*;
+
+    // parse line into a point with `DIM` coordinates
+    pub fn parse_point<const DIM: usize>(line: &str) -> Result<[u64; DIM], String> {
+        line.split(',')
+            .map(parse_int) // parse coordinates
+            .collect::<Result<Vec<u64>, String>>()?
+            .try_into() // convert to exact length list
+            .map_err(|vec: Vec<u64>| {
+                let len = vec.len();
+                format!("line must contain exactly {DIM} comma-seperated coordinates (got {len})")
             })
-            .map(|l| (l[0], l[1], l[2]))
-            .collect()
     }
-}
 
-fn square_dist((x1, y1, z1): (u64, u64, u64), (x2, y2, z2): (u64, u64, u64)) -> u64 {
-    x1.abs_diff(x2) * x1.abs_diff(x2)
-        + y1.abs_diff(y2) * y1.abs_diff(y2)
-        + z1.abs_diff(z2) * z1.abs_diff(z2)
-}
-
-impl Solve for Day<8> {
-    type PartOneData = Vec<(u64, u64, u64)>;
-    type PartTwoData = Vec<(u64, u64, u64)>;
-
-    fn part_1(junctions: &Self::PartOneData) -> String {
-        let pairs = {
-            let mut vec: Vec<((u64, u64, u64), (u64, u64, u64))> = junctions
-                .iter()
-                .enumerate()
-                .flat_map(|(i, &first)| {
-                    std::iter::repeat(first).zip(junctions.iter().copied().skip(i + 1))
-                })
-                .collect();
-
-            vec.sort_by_cached_key(|&(first, second)| square_dist(first, second));
-            vec
-        };
-
-        let mut circuits: Vec<Vec<(u64, u64, u64)>> =
-            junctions.iter().map(|&junction| vec![junction]).collect();
-
-        #[cfg(test)]
-        const TAKE_AMOUNT: usize = 10;
-
-        #[cfg(not(test))]
-        const TAKE_AMOUNT: usize = 1000;
-
-        for (first, second) in pairs.iter().take(TAKE_AMOUNT) {
-            let first_circuit_i = circuits.iter().position(|vec| vec.contains(first)).unwrap();
-            let mut first_circuit = circuits.remove(first_circuit_i);
-
-            if let Some(second_circuit_i) = circuits.iter().position(|vec| vec.contains(second)) {
-                circuits[second_circuit_i].append(&mut first_circuit);
-            } else {
-                circuits.push(first_circuit);
-            }
-        }
-
-        let mut lengths: Vec<usize> = circuits.into_iter().map(|circuit| circuit.len()).collect();
-
-        lengths.sort();
-
-        lengths
+    // merge together the first `NUM_MERGES` pairs of circuits, sorted by the distance between circuit pairs
+    pub fn merge_circuits<const NUM_MERGES: usize>(
+        circuits: &mut Vec<Vec<[u64; 3]>>,
+        junctions: &[[u64; 3]],
+    ) {
+        junctions
+            .iter()
+            .enumerate()
+            // iterate over pairs of junctions
+            .flat_map(|(i, &first)| {
+                std::iter::repeat(first).zip(junctions.iter().copied().skip(i + 1))
+            })
+            .collect::<Vec<([u64; 3], [u64; 3])>>()
+            // sort pairs by their distance to each other
+            .mutate(|pairs| pairs.sort_by_cached_key(square_dist))
             .into_iter()
-            .rev()
-            .take(3)
-            .product::<usize>()
-            .to_string()
+            // take the specified number of pairs
+            .take(NUM_MERGES)
+            // merge each pair of circuits
+            .for_each(|(first, second)| merge_pair(circuits, first, second));
     }
 
-    fn part_2(junctions: &Self::PartOneData) -> String {
-        let pairs = {
-            let mut vec: Vec<((u64, u64, u64), (u64, u64, u64))> = junctions
-                .iter()
-                .enumerate()
-                .flat_map(|(i, &first)| {
-                    std::iter::repeat(first).zip(junctions.iter().copied().skip(i + 1))
-                })
-                .collect();
+    // merge the lists from `circuits` that contain the two circuits `first` and `second`
+    pub fn merge_pair(circuits: &mut Vec<Vec<[u64; 3]>>, first: [u64; 3], second: [u64; 3]) {
+        // find the position of the first element
+        let first_index = circuits
+            .iter()
+            .position(|vec| vec.contains(&first))
+            .expect("junction is in some circuit in the list");
 
-            vec.sort_by_cached_key(|&(first, second)| square_dist(first, second));
-            vec
-        };
+        // find the position of the second element
+        let second_index = circuits
+            .iter()
+            .position(|vec| vec.contains(&second))
+            .expect("junction is in some circuit in the list");
 
-        let mut circuits: Vec<Vec<(u64, u64, u64)>> =
-            junctions.iter().map(|&junction| vec![junction]).collect();
-
-        for (first, second) in pairs {
-            let first_circuit_i = circuits
-                .iter()
-                .position(|vec| vec.contains(&first))
-                .unwrap();
-            let mut first_circuit = circuits.remove(first_circuit_i);
-
-            if let Some(second_circuit_i) = circuits.iter().position(|vec| vec.contains(&second)) {
-                circuits[second_circuit_i].append(&mut first_circuit);
-            } else {
-                circuits.push(first_circuit);
-            }
-
-            if circuits.len() == 1 {
-                return (first.0 * second.0).to_string();
-            }
+        // merge the right circuit into the left one if they are not already merged
+        if first_index < second_index {
+            let mut second_circuit = circuits.remove(second_index);
+            circuits[first_index].append(&mut second_circuit);
+        } else if second_index < first_index {
+            let mut first_circuit = circuits.remove(first_index);
+            circuits[second_index].append(&mut first_circuit);
         }
-        unreachable!("the loop should eventually merge all junctions")
+    }
+
+    // find the squared distance between two points
+    pub fn square_dist(&(lhs, rhs): &([u64; 3], [u64; 3])) -> u64 {
+        lhs.into_iter()
+            .zip(rhs)
+            .map(|(a, b)| a.abs_diff(b).pow(2)) // (a - b)^2
+            .sum()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test;
 
     const INPUT: &str = "\
         162,817,812\n\
@@ -142,32 +158,40 @@ mod tests {
         984,92,344\n\
         425,690,689";
 
-    test!(day 8, parse: Vec<(u64, u64, u64)>;
-        INPUT => vec![
-            (162, 817, 812),
-            (57, 618, 57),
-            (906, 360, 560),
-            (592, 479, 940),
-            (352, 342, 300),
-            (466, 668, 158),
-            (542, 29, 236),
-            (431, 825, 988),
-            (739, 650, 466),
-            (52, 470, 668),
-            (216, 146, 977),
-            (819, 987, 18),
-            (117, 168, 530),
-            (805, 96, 715),
-            (346, 949, 466),
-            (970, 615, 88),
-            (941, 993, 340),
-            (862, 61, 35),
-            (984, 92, 344),
-            (425, 690, 689)
-        ]
-    );
+    #[test]
+    fn test_parse() {
+        let expected = vec![
+            [162, 817, 812],
+            [57, 618, 57],
+            [906, 360, 560],
+            [592, 479, 940],
+            [352, 342, 300],
+            [466, 668, 158],
+            [542, 29, 236],
+            [431, 825, 988],
+            [739, 650, 466],
+            [52, 470, 668],
+            [216, 146, 977],
+            [819, 987, 18],
+            [117, 168, 530],
+            [805, 96, 715],
+            [346, 949, 466],
+            [970, 615, 88],
+            [941, 993, 340],
+            [862, 61, 35],
+            [984, 92, 344],
+            [425, 690, 689],
+        ];
+        assert_eq!(Ok(expected), parse(INPUT));
+    }
 
-    test!(day 8, part 1; INPUT => String::from("40"));
+    #[test]
+    fn test_solve_part_one() {
+        assert_eq!(Ok(40), parse(INPUT).and_then(solve_part_one::<10>));
+    }
 
-    test!(day 8, part 2; INPUT => String::from("25272"));
+    #[test]
+    fn test_solve_part_two() {
+        assert_eq!(Ok(25272), parse(INPUT).and_then(solve_part_two));
+    }
 }

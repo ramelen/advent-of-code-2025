@@ -1,69 +1,84 @@
-use crate::{Day, FromInput, Solve};
+use crate::util::*;
 use std::collections::HashMap;
 
-impl FromInput for HashMap<String, Vec<String>> {
-    fn from_input(input: impl AsRef<str>) -> Self {
-        let mut map = HashMap::new();
+pub const SOLUTIONS: &[&dyn Solver] = &[
+    &Solution::new(11, Part::One, &parse, &solve_part_one),
+    &Solution::new(11, Part::Two, &parse, &solve_part_two),
+];
 
-        for line in input.as_ref().lines() {
-            let (first, rest) = line.split_once(':').unwrap();
-            let key = first.to_string();
-            let values = rest
-                .split_ascii_whitespace()
-                .map(|str| str.to_string())
-                .collect::<Vec<String>>();
-            map.insert(key, values);
+// parse input into map of nodes and their outputs
+fn parse(input: &str) -> Result<HashMap<String, Vec<String>>, String> {
+    input.lines().map(helpers::parse_entry).collect()
+}
+
+// find the number of paths between the 'you' device and the 'out' device
+fn solve_part_one(map: HashMap<String, Vec<String>>) -> Result<u64, String> {
+    Ok(helpers::num_paths(&map, "you", "out"))
+}
+
+// find the number of paths between the 'svr' device and the 'out' device, taking advantage of the fact that it must pass through both 'svr' or 'fft' to get to 'out'
+fn solve_part_two(map: HashMap<String, Vec<String>>) -> Result<u64, String> {
+    Ok(helpers::num_paths(&map, "svr", "dac")
+        * helpers::num_paths(&map, "dac", "fft")
+        * helpers::num_paths(&map, "fft", "out")
+        + helpers::num_paths(&map, "svr", "fft")
+            * helpers::num_paths(&map, "fft", "dac")
+            * helpers::num_paths(&map, "dac", "out"))
+}
+
+mod helpers {
+    use super::*;
+
+    // parse a line into an entry mapping from a node to its destinations
+    pub fn parse_entry(line: &str) -> Result<(String, Vec<String>), String> {
+        // split line by colon
+        let (first, rest) = line
+            .split_once(':')
+            .ok_or_else(|| format!("line doesn't follow [node]: [outputs] format: '{line}'"))?;
+
+        // parse node name
+        let key = first.to_string();
+
+        // parse destination names
+        let values = rest
+            .split_ascii_whitespace()
+            .map(String::from)
+            .collect::<Vec<String>>();
+
+        Ok((key, values))
+    }
+
+    // find the number of paths between `current_device` and `end`
+    pub fn num_paths(map: &HashMap<String, Vec<String>>, current_device: &str, end: &str) -> u64 {
+        fn inner(
+            memo: &mut HashMap<String, u64>,
+            map: &HashMap<String, Vec<String>>,
+            current: &str,
+            end: &str,
+        ) -> u64 {
+            memo.get(current).copied().unwrap_or_else(|| {
+                let num_paths = if current == end {
+                    1 // base case
+                } else {
+                    // search children and sum
+                    map.get(current)
+                        .unwrap_or(&Vec::new()) // silently ignore the case where a node has no children
+                        .iter()
+                        .map(|next| inner(memo, map, next, end))
+                        .sum()
+                };
+                memo.insert(current.to_owned(), num_paths);
+                num_paths
+            })
         }
 
-        map
-    }
-}
-
-fn num_paths(
-    memo: &mut HashMap<String, usize>,
-    map: &HashMap<String, Vec<String>>,
-    current_device: &str,
-    end: &str,
-) -> usize {
-    memo.get(current_device).copied().unwrap_or_else(|| {
-        let num_paths = if current_device == end {
-            1
-        } else if let Some(children) = map.get(current_device) {
-            children
-                .iter()
-                .map(|child| num_paths(memo, map, child, end))
-                .sum::<usize>()
-        } else {
-            0
-        };
-        memo.insert(current_device.to_owned(), num_paths);
-        num_paths
-    })
-}
-
-impl Solve for Day<11> {
-    type PartOneData = HashMap<String, Vec<String>>;
-    type PartTwoData = HashMap<String, Vec<String>>;
-
-    fn part_1(map: &Self::PartOneData) -> String {
-        num_paths(&mut HashMap::new(), map, "you", "out").to_string()
-    }
-
-    fn part_2(map: &Self::PartOneData) -> String {
-        (num_paths(&mut HashMap::new(), map, "svr", "dac")
-            * num_paths(&mut HashMap::new(), map, "dac", "fft")
-            * num_paths(&mut HashMap::new(), map, "fft", "out")
-            + num_paths(&mut HashMap::new(), map, "svr", "fft")
-                * num_paths(&mut HashMap::new(), map, "fft", "dac")
-                * num_paths(&mut HashMap::new(), map, "dac", "out"))
-        .to_string()
+        inner(&mut HashMap::new(), map, current_device, end)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test;
 
     const INPUT_1: &str = "\
         aaa: you hhh\n\
@@ -92,23 +107,30 @@ mod tests {
         ggg: out\n\
         hhh: out";
 
-    test!(day 11, parse: HashMap<String, Vec<String>>;
-        INPUT_1 => HashMap::from([
+    #[test]
+    fn test_parse() {
+        let expected = HashMap::from([
             ("aaa".into(), vec!["you".into(), "hhh".into()]),
             ("you".into(), vec!["bbb".into(), "ccc".into()]),
             ("bbb".into(), vec!["ddd".into(), "eee".into()]),
             ("ccc".into(), vec!["ddd".into(), "eee".into(), "fff".into()]),
             ("ddd".into(), vec!["ggg".into()]),
             ("eee".into(), vec!["out".into()]),
-            ("eee".into(), vec!["out".into()]),
             ("fff".into(), vec!["out".into()]),
             ("ggg".into(), vec!["out".into()]),
             ("hhh".into(), vec!["ccc".into(), "fff".into(), "iii".into()]),
             ("iii".into(), vec!["out".into()]),
-        ])
-    );
+        ]);
+        assert_eq!(Ok(expected), parse(INPUT_1));
+    }
 
-    test!(day 11, part 1; INPUT_1 => String::from("5"));
+    #[test]
+    fn test_solve_part_one() {
+        assert_eq!(Ok(5), parse(INPUT_1).and_then(solve_part_one));
+    }
 
-    test!(day 11, part 2; INPUT_2 => String::from("2"));
+    #[test]
+    fn test_solve_part_two() {
+        assert_eq!(Ok(2), parse(INPUT_2).and_then(solve_part_two));
+    }
 }

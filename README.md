@@ -1,6 +1,6 @@
 # Advent of Code 2025
 
-My solutions to all 12 days of [advent of code](https://adventofcode.com/2025). I made an effort to keep the code as close as possible to the day that I wrote it in the spirit of authenticity. To see my solutions with some more care put into them, see the `refactors` branch. To see code that has had more attention paid to it, you can also take a look at [this project](https://github.com/ramelen/tick-tock-tau).
+My solutions to all 12 days of [advent of code](https://adventofcode.com/2025), refactored after the fact with brief comments and some new and faster algorithms.
 
 ## Building from source
 
@@ -20,28 +20,34 @@ cargo run --release
 This will print out the answers for each day and how long they took, which for my machine looks like:
 
 ```
-Day  1 Part 1 (took    0.733 ms): 1102
-Day  1 Part 2 (took    0.174 ms): 6175
-Day  2 Part 1 (took   97.406 ms): 44854383294
-Day  2 Part 2 (took  333.041 ms): 55647141923
-Day  3 Part 1 (took    0.385 ms): 17193
-Day  3 Part 2 (took    0.437 ms): 171297349921310
-Day  4 Part 1 (took    0.628 ms): 1419
-Day  4 Part 2 (took    5.594 ms): 8739
-Day  5 Part 1 (took    0.401 ms): 848
-Day  5 Part 2 (took    0.026 ms): 334714395325710
-Day  6 Part 1 (took    0.406 ms): 6503327062445
-Day  6 Part 2 (took    0.567 ms): 9640641878593
-Day  7 Part 1 (took    0.211 ms): 1555
-Day  7 Part 2 (took    0.137 ms): 12895232295789
-Day  8 Part 1 (took   40.104 ms): 29406
-Day  8 Part 2 (took   40.010 ms): 7499461416
-Day  9 Part 1 (took    0.384 ms): 4771508457
-Day  9 Part 2 (took   55.958 ms): 1539809693
-Day 11 Part 1 (took    0.443 ms): 613
-Day 11 Part 2 (took    0.907 ms): 372918445876116
-Day 12 Part 1 (took    0.456 ms): 526
-Day 12 Part 2 (took 327080.067 ms): 526
+Day 01, part one (took      0.478 ms): 1102
+Day 01, part two (took      0.267 ms): 6175
+Day 02, part one (took    111.781 ms): 44854383294
+Day 02, part one (took      0.044 ms): 44854383294 (variant 'fancy')
+Day 02, part two (took    429.856 ms): 55647141923
+Day 02, part two (took     74.167 ms): 55647141923 (variant 'memoized')
+Day 02, part two (took      0.459 ms): 55647141923 (variant 'fancy')
+Day 03, part one (took      0.322 ms): 17193
+Day 03, part two (took      0.243 ms): 171297349921310
+Day 04, part one (took      0.390 ms): 1419
+Day 04, part two (took      5.777 ms): 8739
+Day 05, part one (took      0.195 ms): 848
+Day 05, part two (took      0.226 ms): 334714395325710
+Day 06, part one (took      0.350 ms): 6503327062445
+Day 06, part two (took      0.687 ms): 9640641878593
+Day 07, part one (took      0.280 ms): 1555
+Day 07, part two (took      0.174 ms): 12895232295789
+Day 08, part one (took     40.986 ms): 29406
+Day 08, part two (took     44.750 ms): 7499461416
+Day 09, part one (took      0.291 ms): 4771508457
+Day 09, part two (took     40.502 ms): 1539809693
+Day 09, part two (took      6.034 ms): 1539809693 (variant 'fancy')
+Day 10, part one (took     26.872 ms): 409
+Day 10, part two                     : skipped due to long runtime (variant 'long')
+Day 10, part two (took  17756.253 ms): 15489 (variant 'fancy')
+Day 11, part one (took      1.051 ms): 613
+Day 11, part two (took      0.900 ms): 372918445876116
+Day 12, part one (took      0.287 ms): 526
 ```
 
 To change the days that are run or their inputs, edit `src/main.rs` in your favorite text editor.

@@ -1,226 +1,346 @@
-use crate::{Day, FromInput, Solve};
+use crate::util::*;
+use rayon::prelude::*;
+use std::{collections::HashMap, iter::FilterMap, vec::IntoIter};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Light {
-    On,
-    Off,
+pub const SOLUTIONS: &[&dyn Solver] = &[
+    &Solution::new(10, Part::One, &parse, &solve_part_one),
+    &Solution::new_variant(10, Part::Two, "long", &parse, &solve_part_two),
+    &Solution::new_variant(10, Part::Two, "fancy", &parse, &solve_part_two_fancy),
+];
+
+fn parse(input: &str) -> Result<Vec<(Vec<bool>, Vec<Vec<usize>>, Vec<u64>)>, String> {
+    input.lines().map(helpers::parse_machine).collect()
 }
 
-impl Light {
-    fn flipped(self) -> Light {
-        match self {
-            Light::Off => Light::On,
-            Light::On => Light::Off,
-        }
-    }
-
-    fn flip(&mut self) {
-        *self = self.flipped();
-    }
-}
-
-impl FromInput for Vec<(Vec<Light>, Vec<Vec<u64>>, Vec<u64>)> {
-    fn from_input(input: impl AsRef<str>) -> Self {
-        let mut parsed = Vec::new();
-
-        for line in input.as_ref().lines() {
-            let parts = line.split_ascii_whitespace().collect::<Vec<&str>>();
-            let len = parts.len();
-
-            let lights = parts[0]
-                .chars()
-                .filter_map(|char| match char {
-                    '.' => Some(Light::Off),
-                    '#' => Some(Light::On),
-                    _ => None,
-                })
-                .collect::<Vec<Light>>();
-
-            let joltages: Vec<u64> = parts[len - 1]
-                .strip_prefix('{')
-                .unwrap()
-                .strip_suffix('}')
-                .unwrap()
-                .split(',')
-                .map(|num| num.parse::<u64>().unwrap())
-                .collect();
-
-            let buttons: Vec<Vec<u64>> = parts[1..len - 1]
-                .iter()
-                .map(|button| {
-                    button
-                        .strip_prefix('(')
-                        .unwrap()
-                        .strip_suffix(')')
-                        .unwrap()
-                        .split(',')
-                        .map(|num| num.parse::<u64>().unwrap())
-                        .collect::<Vec<u64>>()
-                })
-                .collect();
-
-            parsed.push((lights, buttons, joltages));
-        }
-        parsed
-    }
-}
-
-impl Solve for Day<10> {
-    type PartOneData = Vec<(Vec<Light>, Vec<Vec<u64>>, Vec<u64>)>;
-    type PartTwoData = Vec<(Vec<Light>, Vec<Vec<u64>>, Vec<u64>)>;
-
-    fn part_1(machines: &Self::PartOneData) -> String {
-        let mut num_presses = 0;
-
-        for (lights, buttons, _joltages) in machines {
-            let mut combos: Vec<(u64, Vec<u64>)> = vec![(0, vec![])];
-            for button in buttons {
-                let new_combos: Vec<(u64, Vec<u64>)> = combos
-                    .iter()
-                    .map(|(count, combo)| {
-                        (
-                            count + 1,
-                            combo.iter().chain(button.iter()).copied().collect(),
-                        )
-                    })
-                    .collect();
-                combos.extend_from_slice(new_combos.as_slice());
-            }
-
-            num_presses += combos
+fn solve_part_one(machines: Vec<(Vec<bool>, Vec<Vec<usize>>, Vec<u64>)>) -> Result<u64, String> {
+    machines
+        .into_iter()
+        .map(|(lights, buttons, _)| {
+            helpers::combos(&buttons)
                 .into_iter()
-                .filter(|(_, combo)| {
-                    let mut light_state = vec![Light::Off; lights.len()];
-
-                    combo
-                        .iter()
-                        .for_each(|&light| light_state[light as usize].flip());
-
-                    light_state == *lights
+                .filter_map(|(press_count, combo)| {
+                    let mut light_state = vec![false; lights.len()];
+                    combo.iter().for_each(|&i| light_state[i] = !light_state[i]);
+                    (light_state == *lights).then_some(press_count)
                 })
-                .map(|(press_count, _)| press_count)
                 .min()
-                .unwrap();
-        }
-
-        num_presses.to_string()
-    }
-
-    fn part_2(machines: &Self::PartOneData) -> String {
-        use rayon::prelude::*;
-        machines
-            .par_iter()
-            .map(|(_lights, buttons, joltages)| solve_machine(buttons, joltages))
-            .sum::<u64>()
-            .to_string()
-    }
+                .ok_or("all machines must have solutions".to_string())
+        })
+        .sum()
 }
 
-fn solve_machine(buttons: &Vec<Vec<u64>>, joltages: &Vec<u64>) -> u64 {
-    let mut joltage_states = vec![joltages.to_owned()];
-    let mut button_states = vec![buttons.to_owned()];
-    let mut press_states = vec![0];
-    let mut min_presses = u64::MAX;
+fn solve_part_two(machines: Vec<(Vec<bool>, Vec<Vec<usize>>, Vec<u64>)>) -> Result<u64, String> {
+    Ok(machines.par_iter().map(helpers::solve_machine).sum())
+}
 
-    'outer: while let Some(joltage_state) = joltage_states.pop() {
-        let button_state = button_states.pop().unwrap();
-        let press_state = press_states.pop().unwrap();
+fn solve_part_two_fancy(
+    machines: Vec<(Vec<bool>, Vec<Vec<usize>>, Vec<u64>)>,
+) -> Result<u64, String> {
+    machines
+        .into_par_iter()
+        .map(|(_, mut buttons, mut joltages)| {
+            helpers::reduce_machine(&mut buttons, &mut joltages);
+            helpers::solve_machine_fancy(&buttons, &joltages, &mut HashMap::new())
+                .ok_or("all machines must have a solution".to_string())
+        })
+        .sum()
+}
 
-        let max_joltage = joltage_state.iter().max().unwrap();
-        if press_state + max_joltage >= min_presses {
-            continue;
-        }
+mod helpers {
+    use super::*;
 
-        for (i, _) in joltage_state
+    // parse line into a machine, composed of lights, buttons, and joltage requirements
+    pub fn parse_machine(line: &str) -> Result<(Vec<bool>, Vec<Vec<usize>>, Vec<u64>), String> {
+        // split by whitespace into lights, a list of buttons, and the joltage requirements
+        let parts = line.split_ascii_whitespace().collect::<Vec<&str>>();
+        let [lights_str, buttons_str @ .., joltage_str] = parts.as_slice() else {
+            return Err(format!(
+                "row must contain lights, buttons, and joltage requirements: got only {len} parts",
+                len = parts.len()
+            ));
+        };
+
+        // parse light indicators
+        let lights = lights_str
+            .strip_prefix('[')
+            .ok_or(format!("diagram doesn't begin with '[': '{lights_str}'"))?
+            .strip_suffix(']')
+            .ok_or(format!("diagram doesn't end with ']': '{lights_str}'"))?
+            .chars()
+            .map(|char| match char {
+                '.' => Ok(false),
+                '#' => Ok(true),
+                char => Err(format!("no such light indicator '{char}'")),
+            })
+            .collect::<Result<Vec<bool>, String>>()?;
+
+        // parse buttons
+        let buttons = buttons_str
             .iter()
-            .enumerate()
-            .filter(|&(_, &joltage)| joltage != 0)
-        {
-            if !button_state
-                .iter()
-                .any(|button| button.contains(&(i as u64)))
-            {
+            .map(|button| {
+                button
+                    .strip_prefix('(')
+                    .ok_or(format!("button doesn't begin with '(': '{button}'"))?
+                    .strip_suffix(')')
+                    .ok_or(format!("button doesn't end with ')': '{button}'"))?
+                    .split(',')
+                    .map(parse_int)
+                    .collect()
+            })
+            .collect::<Result<Vec<Vec<usize>>, String>>()?;
+
+        // parse joltage requirements
+        let joltages = joltage_str
+            .strip_prefix('{')
+            .ok_or(format!("joltages don't begin with '{{': '{joltage_str}'"))?
+            .strip_suffix('}')
+            .ok_or(format!("joltages don't end with '}}': '{joltage_str}'"))?
+            .split(',')
+            .map(parse_int)
+            .collect::<Result<Vec<u64>, String>>()?;
+
+        Ok((lights, buttons, joltages))
+    }
+
+    // simplify buttons and joltage requirements
+    pub fn reduce_machine(buttons: &mut Vec<Vec<usize>>, joltages: &mut Vec<u64>) {
+        use std::collections::HashSet;
+
+        // collect buttons into sets
+        let mut button_sets: Vec<HashSet<usize>> = buttons
+            .clone()
+            .into_iter()
+            .map(HashSet::from_iter)
+            .collect();
+
+        // repeatedly perform a simplifying operation until convergence
+        'outer: loop {
+            let mut new_joltages = joltages.clone();
+            for (test_index, joltage) in joltages.iter().enumerate() {
+                // indices shared by all buttons that have the test index, implying that we can remove the shared indices from these buttons and reduce the requirement for the shared indices by exactly the requirement for the test index
+                let shared: HashSet<usize> = button_sets
+                    .iter()
+                    .filter(|button_set| button_set.contains(&test_index))
+                    .cloned()
+                    .reduce(|acc, button_set| acc.intersection(&button_set).copied().collect())
+                    .unwrap_or(HashSet::new())
+                    .mutate(|shared| shared.remove(&test_index));
+
+                // modify only if the buttons share at least one index
+                if shared.is_empty() {
+                    continue;
+                }
+
+                // lower the shared requirments by the test requirement
+                for affected in &shared {
+                    new_joltages[*affected] -= joltage;
+                }
+
+                // remove the shared indices for each button
+                for button_set in &mut button_sets {
+                    if button_set.contains(&test_index) {
+                        *button_set = button_set.difference(&shared).copied().collect();
+                    }
+                }
+
+                *joltages = new_joltages;
                 continue 'outer;
             }
+            break;
         }
 
-        let min_joltage = joltage_state
-            .iter()
-            .filter(|&&joltage| joltage != 0)
-            .min()
-            .unwrap();
+        *buttons = button_sets.into_iter().map(Vec::from_iter).collect()
+    }
 
-        let min_joltage_pos = joltage_state
-            .iter()
-            .position(|joltage| joltage == min_joltage)
-            .unwrap();
+    // solve a machine using a (brute force) depth-first search of all the ways to fill the joltage requirements
+    pub fn solve_machine((_, buttons, joltages): &(Vec<bool>, Vec<Vec<usize>>, Vec<u64>)) -> u64 {
+        // minimum required presses to solve machine so far
+        let mut min_presses = u64::MAX;
 
-        let (useful_buttons, useless_buttons): (Vec<Vec<u64>>, Vec<Vec<u64>>) = button_state
-            .into_iter()
-            .partition(|button| button.contains(&(min_joltage_pos as u64)));
-
-        if useful_buttons.is_empty() {
-            continue;
-        }
-
-        let combos = partitions(useful_buttons.len(), *min_joltage);
-        let new_press_state = press_state + min_joltage;
-        for combo in combos {
-            let mut new_joltage_state = joltage_state.to_owned();
-            for (delta, button) in combo.iter().zip(useful_buttons.iter()) {
-                for i in button {
-                    new_joltage_state[*i as usize] -= delta;
-                }
-            }
-
-            if new_joltage_state.iter().all(|&item| item == 0) {
-                if new_press_state < min_presses {
-                    min_presses = new_press_state;
-                }
+        // worklist containing the number of presses, the joltage state, and the list of useful buttons for each scenario
+        let mut worklist = vec![(0, joltages.to_owned(), Vec::from_iter(buttons))];
+        while let Some((press_count, joltage_state, button_state)) = worklist.pop() {
+            // bail if the current state can't improve on the best press count so far
+            if press_count + joltage_state.iter().max().unwrap() >= min_presses {
                 continue;
             }
 
-            joltage_states.push(new_joltage_state);
-            button_states.push(useless_buttons.clone());
-            press_states.push(new_press_state);
-        }
-    }
-    min_presses
-}
+            // bail if there is a joltage requirement that isn't affected by any button
+            let all_joltages_fillable = joltage_state.iter().enumerate().all(|(i, joltage)| {
+                *joltage == 0 || button_state.iter().any(|button| button.contains(&i))
+            });
+            if !all_joltages_fillable {
+                continue;
+            }
 
-fn partitions(bins: usize, max: u64) -> Vec<Vec<u64>> {
-    if max == 0 {
-        vec![vec![0; bins]]
-    } else if bins == 0 {
-        panic!("don't try to give cookies to zero friends")
-    } else if bins == 1 {
-        vec![vec![max]]
-    } else {
-        (0..=max)
-            .flat_map(|n| {
-                partitions(bins - 1, max - n)
-                    .into_iter()
-                    .map(move |partition| std::iter::once(n).chain(partition).collect::<Vec<u64>>())
+            // the smallest joltage requirement yet to be filled
+            let min_joltage = joltage_state
+                .iter()
+                .filter(|&&joltage| joltage != 0)
+                .min()
+                .expect("all zero joltages caught in previous iterations of loop");
+
+            // the index of the minimum joltage requirement
+            let min_joltage_pos = joltage_state.element_offset(min_joltage).unwrap();
+
+            // the buttons that do and do not affect the target joltage
+            let (useful_buttons, useless_buttons): (Vec<_>, Vec<_>) = button_state
+                .into_iter()
+                .partition(|button| button.contains(&min_joltage_pos));
+
+            // the number of presses
+            let new_press_count = press_count + min_joltage;
+            for combo in partitions(useful_buttons.len(), *min_joltage) {
+                // the joltage state after pressing the buttons in the combo
+                let new_joltage_state = joltage_state.to_owned().mutate(|state| {
+                    for (delta, &button) in combo.iter().zip(useful_buttons.iter()) {
+                        for i in button {
+                            state[*i] -= delta;
+                        }
+                    }
+                });
+
+                if new_joltage_state.iter().all(|&item| item == 0) {
+                    // update the min if the machine is solved
+                    min_presses = min_presses.min(new_press_count);
+                } else {
+                    // once we have tried all the ways to exactly fill the smallest joltage requirement, we cannot press any of the 'useful' buttons anymore since that would go over the joltage requirement, so we can remove those buttons and do the next iteration with only the 'useless' buttons
+                    worklist.push((new_press_count, new_joltage_state, useless_buttons.clone()));
+                }
+            }
+        }
+
+        min_presses
+    }
+
+    // solve a machine by recursively reducing the machine by approximately half to save on redundant search iterations
+    pub fn solve_machine_fancy(
+        buttons: &[Vec<usize>],
+        joltages: &[u64],
+        memo: &mut HashMap<Vec<bool>, Vec<(u64, Vec<u64>)>>,
+    ) -> Option<u64> {
+        // return early if the joltage requirements have already been met
+        if joltages.iter().all(|&joltage| joltage == 0) {
+            return Some(0);
+        }
+
+        // each element is true if the joltage requirement is odd and false if it is even
+        let parities: Vec<bool> = joltages.iter().map(|joltage| joltage % 2 == 0).collect();
+
+        // for each way to correct the joltage parities, solve a machine with half of the corrected requirements (which are all even) and double the press count, effectively finding a solution where you press each button an even number of times and then at most once
+        memo.entry(parities.clone())
+            .or_insert_with(|| parity_correcting_combos(&parities, buttons, joltages).collect())
+            .to_owned()
+            .into_iter()
+            .filter_map(|(press_count, joltage_diffs)| {
+                // joltage requirements for a reduced machine
+                let reduced_joltages = joltages
+                    .iter()
+                    .zip(joltage_diffs)
+                    // subtract the diff and divide by two to get the reduced requirements
+                    .map(|(original, change)| original.checked_sub(change).map(|val| val / 2))
+                    .collect::<Option<Vec<u64>>>()?;
+
+                // solve the reduced machine
+                solve_machine_fancy(buttons, &reduced_joltages, memo)
+                    // double the count reduced solution and add the count for the parity correction
+                    .map(|count| 2 * count + press_count)
             })
-            .collect()
+            // also try to solve the machine without a reduction as a base case
+            .chain(solve_machine_base_case(buttons, joltages))
+            .min()
+    }
+
+    // return every combo that reduces the joltage state to only even requirements, using at most one press of each button
+    fn parity_correcting_combos(
+        parities: &[bool],
+        buttons: &[Vec<usize>],
+        joltages: &[u64],
+    ) -> FilterMap<
+        IntoIter<(u64, Vec<usize>)>,
+        impl FnMut((u64, Vec<usize>)) -> Option<(u64, Vec<u64>)>,
+    > {
+        combos(buttons).into_iter().filter_map(|(count, combo)| {
+            let joltage_state = vec![0; joltages.len()]
+                .mutate(|joltages| combo.iter().for_each(|&index| joltages[index] += 1));
+            joltage_state
+                .iter()
+                .map(|joltage| joltage % 2 == 0)
+                .eq(parities.iter().copied())
+                .then_some((count, joltage_state))
+        })
+    }
+
+    // attempt to solve a machine using at most one press of each button
+    fn solve_machine_base_case(buttons: &[Vec<usize>], joltages: &[u64]) -> Option<u64> {
+        combos(buttons)
+            .into_iter()
+            .filter_map(|(count, combo)| {
+                let joltage_state = vec![0; joltages.len()]
+                    .mutate(|joltages| combo.iter().for_each(|&i| joltages[i] += 1));
+                (joltage_state == *joltages).then_some(count)
+            })
+            .min()
+    }
+
+    // returns a list of button press counts for all possible ways to press `bins` buttons that add up to `max`
+    fn partitions(bins: usize, max: u64) -> Vec<Vec<u64>> {
+        fn inner(total_bins: usize, bins_left: usize, max: u64) -> Vec<Vec<u64>> {
+            if bins_left < 2 || max == 0 {
+                // base case: there is only one way to partition the elements
+                let mut partition = Vec::with_capacity(total_bins);
+                partition.extend(std::iter::repeat_n(max, bins_left));
+                vec![partition]
+            } else {
+                // recurse over all possible choices for the first button
+                (0..=max)
+                    .flat_map(|n| {
+                        inner(total_bins, bins_left - 1, max - n).into_iter().map(
+                            move |mut partition| {
+                                partition.push(n);
+                                partition
+                            },
+                        )
+                    })
+                    .collect()
+            }
+        }
+        inner(bins, bins, max)
+    }
+
+    // list all subsets of the given list of buttons
+    pub fn combos(buttons: &[Vec<usize>]) -> Vec<(u64, Vec<usize>)> {
+        // initialize with the empty set
+        let mut combos = vec![(0, Vec::new())];
+
+        for button in buttons {
+            // re-add every combo to the list but with an additional button, so that there is now every combo without the button and every combo with the button somewhere in the list
+            combos.extend(
+                combos.clone().into_iter().map(|(count, combo)| {
+                    (count + 1, combo.iter().chain(button).copied().collect())
+                }),
+            );
+        }
+
+        combos
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test;
 
-    const F: Light = Light::Off;
-    const T: Light = Light::On;
+    const F: bool = false;
+    const T: bool = true;
 
     const INPUT: &str = "\
         [.##.] (3) (1,3) (2) (2,3) (0,2) (0,1) {3,5,4,7}\n\
         [...#.] (0,2,3,4) (2,3) (0,4) (0,1,2) (1,2,3,4) {7,5,12,7,2}\n\
         [.###.#] (0,1,2,3,4) (0,3,4) (0,1,2,4,5) (1,2) {10,11,11,5,10,5}";
 
-    test!(day 10, parse: Vec<(Vec<Light>, Vec<Vec<u64>>, Vec<u64>)>;
-        INPUT => vec![
+    #[test]
+    fn test_parse() {
+        let expected = vec![
             (
                 vec![F, T, T, F],
                 vec![
@@ -229,9 +349,9 @@ mod tests {
                     vec![2],
                     vec![2, 3],
                     vec![0, 2],
-                    vec![0, 1]
+                    vec![0, 1],
                 ],
-                vec![3, 5, 4, 7]
+                vec![3, 5, 4, 7],
             ),
             (
                 vec![F, F, F, T, F],
@@ -242,7 +362,7 @@ mod tests {
                     vec![0, 1, 2],
                     vec![1, 2, 3, 4],
                 ],
-                vec![7, 5, 12, 7, 2]
+                vec![7, 5, 12, 7, 2],
             ),
             (
                 vec![F, T, T, T, F, T],
@@ -252,12 +372,19 @@ mod tests {
                     vec![0, 1, 2, 4, 5],
                     vec![1, 2],
                 ],
-                vec![10, 11, 11, 5, 10, 5]
+                vec![10, 11, 11, 5, 10, 5],
             ),
-        ]
-    );
+        ];
+        assert_eq!(Ok(expected), parse(INPUT));
+    }
 
-    test!(day 10, part 1; INPUT => String::from("7"));
+    #[test]
+    fn test_solve_part_one() {
+        assert_eq!(Ok(7), parse(INPUT).and_then(solve_part_one));
+    }
 
-    test!(day 10, part 2; INPUT => String::from("33"));
+    #[test]
+    fn test_solve_part_two() {
+        assert_eq!(Ok(33), parse(INPUT).and_then(solve_part_two));
+    }
 }

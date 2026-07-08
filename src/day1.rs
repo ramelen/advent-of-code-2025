@@ -1,62 +1,78 @@
-use crate::{Day, FromInput, Solve};
+use crate::util::*;
 
-impl FromInput for Vec<i32> {
-    fn from_input(input: impl AsRef<str>) -> Vec<i32> {
-        input
-            .as_ref()
-            .lines()
-            .map(|line| {
-                let (turn, dist) = line.split_at(1);
-                let distance: i32 = dist.parse().unwrap();
-                match turn {
-                    "L" => -distance,
-                    "R" => distance,
-                    _ => panic!("Invalid turn direction"),
-                }
-            })
-            .collect()
-    }
+pub const SOLUTIONS: &[&dyn Solver] = &[
+    &Solution::new(1, Part::One, &parse, &solve_part_one),
+    &Solution::new(1, Part::Two, &parse, &solve_part_two),
+];
+
+// parse input into a list of signed dial turn instructions
+fn parse(input: &str) -> Result<Vec<i32>, String> {
+    input.lines().map(helpers::parse_instruction).collect()
 }
 
-impl Solve for Day<1> {
-    type PartOneData = Vec<i32>;
-    type PartTwoData = Vec<i32>;
+// count the number of times the dial lands on zero
+fn solve_part_one(deltas: Vec<i32>) -> Result<u64, String> {
+    Ok(deltas
+        .into_iter()
+        .scan(50, |pos, delta| {
+            *pos += delta; // update the dial position
+            Some(*pos % 100) // wrap to range [-99, 99]
+        })
+        .filter(|&pos| pos == 0)
+        .count() as u64)
+}
 
-    fn part_1(deltas: &Self::PartOneData) -> String {
-        deltas
-            .iter()
-            .scan(50, |position, delta| {
-                *position += delta;
-                Some(*position % 100)
-            })
-            .filter(|&position| position == 0)
-            .count()
-            .to_string()
+// count the number of times the dial passes over zero
+fn solve_part_two(deltas: Vec<i32>) -> Result<u64, String> {
+    // the number of times the dial has passed over zero
+    let mut zero_count = 0;
+
+    // excecute each turn instruction
+    let mut position = 50; // current dial position
+    for delta in deltas {
+        // number of whole revolutions (rounded towards zero) for this delta
+        zero_count += (delta / 100).unsigned_abs() as u64;
+
+        // add the remainder to the current position
+        let new_pos = position + delta % 100;
+
+        // don't double count when the old position was zero, and don't count if the new position hasn't actually passed over zero
+        if !(position == 0 || (1..100).contains(&new_pos)) {
+            zero_count += 1;
+        }
+
+        // wrap the number to the range [0, 99]
+        position = new_pos.rem_euclid(100);
     }
 
-    fn part_2(deltas: &Self::PartTwoData) -> String {
-        let mut position = 50;
-        let mut zeros = 0;
-        for delta in deltas {
-            let guaranteed_clicks = delta / 100; // rounds towards zero
-            zeros += guaranteed_clicks.abs();
+    Ok(zero_count)
+}
 
-            let rest = delta % 100;
-            let new_position = position + rest;
+mod helpers {
+    use super::*;
 
-            if position != 0 && !(1..100).contains(&new_position) {
-                zeros += 1;
-            }
-            position = new_position.rem_euclid(100);
+    // parse a line into a signed dial turn instruction
+    pub fn parse_instruction(input: &str) -> Result<i32, String> {
+        // split into direction character (L | R) and distance (natural)
+        let (direction_str, distance_str) = input.split_at(1);
+
+        // parse distance as an unsigned int (so that negative inputs are errors) and convert to a signed int
+        let distance = parse_int::<u32>(distance_str)?
+            .try_into()
+            .map_err(|_| format!("distance too large: '{distance_str}'"));
+
+        // negate the distance if the turn direction is left
+        match direction_str {
+            "L" => distance.map(i32::strict_neg),
+            "R" => distance,
+            direction_str => Err(format!("no such turn direction '{direction_str}'")),
         }
-        zeros.to_string()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test;
 
     const INPUT: &str = "\
         L68\n\
@@ -70,9 +86,21 @@ mod tests {
         R14\n\
         L82";
 
-    test!(day 1, parse: Vec<i32>; INPUT => vec![-68, -30, 48, -5, 60, -55, -1, -99, 14, -82] );
+    #[test]
+    fn test_parse() {
+        assert_eq!(
+            Ok(vec![-68, -30, 48, -5, 60, -55, -1, -99, 14, -82]),
+            parse(INPUT)
+        );
+    }
 
-    test!(day 1, part 1; INPUT => String::from("3"));
+    #[test]
+    fn test_solve_part_one() {
+        assert_eq!(Ok(3), parse(INPUT).and_then(solve_part_one));
+    }
 
-    test!(day 1, part 2; INPUT => String::from("6"));
+    #[test]
+    fn test_solve_part_two() {
+        assert_eq!(Ok(6), parse(INPUT).and_then(solve_part_two));
+    }
 }
